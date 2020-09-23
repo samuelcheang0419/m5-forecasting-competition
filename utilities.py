@@ -17,3 +17,7 @@ def timer(fn):
 def get_slope(x):
     x = np.ravel(x)
     return linregress(range(len(x)), x)[0]
+
+def save_df_to_pickle(df, file_loc):
+    df.to_pickle(file_loc)
+    print('df saved to {}'.format(file_loc))
