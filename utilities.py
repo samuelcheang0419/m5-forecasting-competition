@@ -18,6 +18,17 @@ def get_slope(x):
     x = np.ravel(x)
     return linregress(range(len(x)), x)[0]
 
+def get_rmsse(train, test, predict):
+    if len(predict) != len(test):
+        print('train and test sets have different length')
+        return
+    if type(predict) != np.ndarray:
+        predict = predict.values
+    numerator = np.sum((test.values - predict)**2)
+    denominator = np.mean((train.shift(-1) - train)**2)
+    rmsse = (numerator / denominator / len(test))**0.5
+    return rmsse
+
 def save_df_to_pickle(df, file_loc):
     df.to_pickle(file_loc)
     print('df saved to {}'.format(file_loc))
