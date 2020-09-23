@@ -149,3 +149,41 @@ def feature_rolling_trend_of_lag(df, rolling_d, lag_d):
     df[temp_col] = df['units_sold'].shift(lag_d)
     df['rolling_trend_{}_of_lag_{}_units_sold'.format(rolling_d, lag_d)] = df[temp_col].rolling(rolling_d).apply(lambda x: get_slope(x))
     df.drop([temp_col], axis = 1, inplace = True)
+
+### BUILD AGGREGATE TABLE ###
+@timer
+def build_agg_items_df(items_df):
+    merge_lst = [get_overall_trend(items_df, 
+                                   groupby_cols=['id', lambda x: 'all_time'], 
+                                   agg_cols=['units_sold'])]
+    builtin_aggs_col = ['wday', 'month', 'year', 'SNAP_allowed', lambda x: 'all_time']
+    for col in builtin_aggs_col:
+        merge_lst.append(get_builtin_aggs(items_df, 
+                                         groupby_cols = ['id', col], 
+                                         agg_cols = ['units_sold', 'sell_price'], 
+                                         agg_funcs = ['mean', 'std']))
+    return pd.concat(merge_lst, axis = 1)
+
+def flatten_agg(df):
+    for i, name in enumerate(df.index.names):
+        if name != 'id' and name != None:
+            df.index.set_levels(
+                map(lambda x: '{}_{}'.format(name, x), df.index.levels[i]), 
+                level = i, 
+                inplace = True
+            )
+    df = df.unstack(level = list(map(lambda x: x[0], filter(lambda x: x[1] != 'id', enumerate(df.index.names))))) # level arg doesn't take iterators
+    df.columns = map(lambda x: '_'.join(x), df.columns)
+    return df
+    
+def get_builtin_aggs(items_df, groupby_cols, agg_cols, agg_funcs = ['mean', 'std', 'count']):
+    return_df = items_df.groupby(groupby_cols)[agg_cols].agg(agg_funcs)
+    return_df = flatten_agg(return_df)
+    return return_df
+
+def get_overall_trend(items_df, groupby_cols, agg_cols):
+    return_df = items_df.groupby(groupby_cols)[agg_cols].apply(get_slope)
+    return_df = pd.DataFrame(return_df, columns = pd.MultiIndex.from_product([agg_cols, ['trend']]))
+    return_df = flatten_agg(return_df)
+    return return_df
+    
