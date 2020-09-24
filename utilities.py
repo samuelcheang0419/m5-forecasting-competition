@@ -32,3 +32,14 @@ def get_rmsse(train, test, predict):
 def save_df_to_pickle(df, file_loc):
     df.to_pickle(file_loc)
     print('df saved to {}'.format(file_loc))
+
+def time_series_train_test_split(y, test_split):
+    if test_split <= 0:
+        raise ValueError('test_split cannot be <= 0')
+    y_len = len(y)
+    if test_split < 1: # treat as ratio
+        return y[:int(y_len * (1 - test_split))], y[int(y_len * (1 - test_split)):]
+    else: # treat as count
+        if test_split >= y_len:
+            raise ValueError('test_split cannot be greater than number of samples')
+        return y[:-test_split], y[-test_split:]
