@@ -43,3 +43,17 @@ def time_series_train_test_split(y, test_split):
         if test_split >= y_len:
             raise ValueError('test_split cannot be greater than number of samples')
         return y[:-test_split], y[-test_split:]
+
+def get_train_validate_test_indices(df, split_val = 0.25):
+    item_indices = df.groupby('id').indices.items()
+    item_train_test_indices = {
+        k: time_series_train_test_split(v, split_val) for k, v in item_indices
+    }
+    test_indices = np.concatenate([v[1] for v in item_train_test_indices.values()])
+    item_train_validate_indices = {
+        k: time_series_train_test_split(v[0], split_val) \
+        for k, v in item_train_test_indices.items()
+    }
+    train_indices = np.concatenate([v[0] for v in item_train_validate_indices.values()])
+    validate_indices = np.concatenate([v[1] for v in item_train_validate_indices.values()])
+    return train_indices, validate_indices, test_indices

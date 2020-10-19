@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from utilities import timer, get_slope
+from sklearn.base import BaseEstimator, TransformerMixin
 
 ### INDEX TABLES ###
 def get_all_item_indices_df():
@@ -186,4 +187,82 @@ def get_overall_trend(items_df, groupby_cols, agg_cols):
     return_df = pd.DataFrame(return_df, columns = pd.MultiIndex.from_product([agg_cols, ['trend']]))
     return_df = flatten_agg(return_df)
     return return_df
+
+### PIPELINE CONSTRUCT ###
+class ColumnSelector(BaseEstimator, TransformerMixin):
+    def __init__(self, features):
+        self.features = features
     
+    def fit(self, df, y = None):
+        """Returns `self` unless something different happens in train and test"""
+        return self
+    
+    def transform(self, df, y = None):
+        return df[self.features]
+    
+    def get_feature_names(self):
+        return self.features
+    
+class DayExtractor(BaseEstimator, TransformerMixin):
+    def __init__(self, date_col = 'date'):
+        self.date_col = date_col
+    
+    def fit(self, df, y = None):
+        """Returns `self` unless something different happens in train and test"""
+        return self
+    
+    def transform(self, df, y = None):
+        return pd.to_datetime(df[self.date_col]).dt.day[:, np.newaxis]
+    
+    def get_feature_names(self):
+        return ['day']
+    
+class FloatYearTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, date_col = 'date'):
+        self.date_col = date_col
+        
+    def fit(self, df, y = None):
+        """Returns `self` unless something different happens in train and test"""
+        return self
+    
+    def transform(self, df, y = None):
+        return pd.to_datetime(df[self.date_col])\
+                .map(lambda x: x.year + ((x.month-1)/12) + 
+                     ((x.day-1)/x.daysinmonth/12)
+                    )\
+                [:, np.newaxis]
+    
+    def get_feature_names(self):
+        return ['float_year']
+
+class AggMetricsTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        pass
+    
+    def fit(self, df, y = None):
+        merge_lst = [
+            get_overall_trend(df, 
+                              groupby_cols=['id', lambda x: 'all_time'], 
+                              agg_cols=['units_sold'])
+            ]
+        builtin_aggs_col = ['wday', 'month', 'year', 'SNAP_allowed', lambda x: 'all_time']
+        for col in builtin_aggs_col:
+            merge_lst.append(
+                get_builtin_aggs(df, 
+                                 groupby_cols = ['id', col], 
+                                 agg_cols = ['units_sold', 'sell_price'], 
+                                 agg_funcs = ['mean', 'std'])
+                )
+        self.train_agg_df = pd.concat(merge_lst, axis = 1)
+        return self
+    
+    def transform(self, df, y = None):
+        return df.merge(
+                self.train_agg_df, 
+                how = 'left', 
+                left_on = 'id', 
+                right_index = True
+            )[self.train_agg_df.columns]
+
+    def get_feature_names(self):
+        return self.train_agg_df.columns
