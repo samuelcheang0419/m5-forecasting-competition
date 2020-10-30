@@ -40,8 +40,8 @@ def time_series_train_test_split(y, test_split):
     if test_split < 1: # treat as ratio
         return y[:int(y_len * (1 - test_split))], y[int(y_len * (1 - test_split)):]
     else: # treat as count
-        if test_split >= y_len:
-            raise ValueError('test_split cannot be greater than number of samples')
+        # if test_split >= y_len:
+        #     raise ValueError('test_split cannot be greater than number of samples')
         return y[:-test_split], y[-test_split:]
 
 def get_train_validate_test_indices(df, split_val = 0.25):
